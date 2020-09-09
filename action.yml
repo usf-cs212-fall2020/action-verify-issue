@@ -1,0 +1,10 @@
+name: 'Respond to Project Verification Issues'
+description: 'Github Action to respond to project verification issues.'
+
+runs:
+  using: 'node12'
+  main: 'index.js'
+
+inputs:
+  token:
+    required: true
