@@ -91,20 +91,38 @@ async function run() {
         owner: context.payload.organization.login,
         repo: context.payload.repository.name,
         workflow_id: 'verify.yml',
-        event: 'release',
-        status: 'success'
+        event: 'release'
       });
 
       const release = tokens[1];
+
+      const branches = runs.data.workflow_runs.map(r => r.head_branch);
+      core.info(`Fetched ${runs.data.workflow_runs.length} workflow runs: ${branches.join(', ')}`);
+
       const found = runs.data.workflow_runs.find(r => r.head_branch === release);
 
       if (found === undefined) {
-        comment.body = `## :stop_sign: Release Not Verified\n\nUnable to find a successful workflow run that matches the \`${release}\` release. Please successfully run the "Verify Project" workflow before re-opening this issue.`
+        comment.body = `## :stop_sign: Release Not Verified\n\nUnable to find a workflow run that matches the \`${release}\` release.`;
         status.state = 'closed';
       }
       else {
-        comment.body = `## :tada: Release Verified!\n\nIdentified [passing workflow run](${found.html_url}) for the \`${release}\` release.`
-        status.state = 'open';
+        core.info(`Found workflow run for the ${release} release.`);
+        core.info(`Workflow: ${found.workflow_id}, Run ID: ${found.id}, Run Number: ${found.run_number}`);
+        core.info(`Status: ${found.status}, Conclusion: ${found.conclusion}`);
+        core.info(`URL: ${found.html_url}`);
+
+        if (found.status !== "completed") {
+          comment.body = `## :stop_sign: Release Not Verified\n\nThe [workflow run](${found.html_url}) for \`${release}\` did not complete.`;
+          status.state = 'closed';
+        }
+        else if (found.conclusion !== "success") {
+          comment.body = `## :stop_sign: Release Not Verified\n\nThe [workflow run](${found.html_url}) for \`${release}\` was not successful.`;
+          status.state = 'closed';
+        }
+        else {
+          comment.body = `## :tada: Release Verified!\n\nIdentified [passing workflow run](${found.html_url}) for the \`${release}\` release.`;
+          status.state = 'open';
+        }
       }
     }
 
